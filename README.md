@@ -86,6 +86,16 @@ You can connect to the local PostgreSQL databases using IntelliJ's Database tool
 *   **Password:** `collector`
 *   **URL:** `jdbc:postgresql://localhost:5001,localhost:5002/postgres?targetServerType=primary`
 
+#### 6. Spring Dev Tools: Automatic Restart
+
+Tou can develop application in automatic restart mode, to instantly apply changes to running application. To do so ensure following IntelliJ settings are set:
+
+*   **Settings > Build, Execution, Deployment > Compiler > Build project automatically :** `ENABLE`
+*   **Settings > Advanced Settings > Allow auto-make to start even if developed application is currently running :** `ENABLE`
+
+Application will be restarted whenever you save a file.
+
+
 ### Stopping the Environment
 
 When you are done developing, you can stop and remove the Docker containers:
