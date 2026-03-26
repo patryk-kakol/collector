@@ -1,0 +1,109 @@
+services:
+  monitor:
+    image: citusdata/pg_auto_failover:v2.0-pg15
+    container_name: pgaf_monitor
+    environment:
+      - PGDATA=/data/monitor_data
+      - XDG_CONFIG_HOME=/data/config
+      - XDG_DATA_HOME=/data/share
+    command: [ "/bin/bash", "/opt/init-monitor.sh" ]
+    ports:
+      - "5000:5432"
+    volumes:
+      - monitor_data:/data
+      - ./scripts/local-env/init-monitor.sh:/opt/init-monitor.sh
+    networks:
+      - pgaf_net
+
+  node1:
+    image: citusdata/pg_auto_failover:v2.0-pg15
+    container_name: pgaf_node1
+    hostname: node1
+    environment:
+      - PGDATA=/data/node1_data
+      - PG_AUTOCTL_MONITOR=postgresql://autoctl_node@monitor:5432/pg_auto_failover
+      - XDG_CONFIG_HOME=/data/config
+      - XDG_DATA_HOME=/data/share
+    command: [ "/bin/bash", "/opt/init-node.sh", "node1" ]
+    ports:
+      - "5001:5432"
+    volumes:
+      - node1_data:/data
+      - ./scripts/local-env/init-node.sh:/opt/init-node.sh
+    networks:
+      - pgaf_net
+    depends_on:
+      - monitor
+
+  node2:
+    image: citusdata/pg_auto_failover:v2.0-pg15
+    container_name: pgaf_node2
+    hostname: node2
+    environment:
+      - PGDATA=/data/node2_data
+      - PG_AUTOCTL_MONITOR=postgresql://autoctl_node@monitor:5432/pg_auto_failover
+      - XDG_CONFIG_HOME=/data/config
+      - XDG_DATA_HOME=/data/share
+    command: [ "/bin/bash", "/opt/init-node.sh", "node2" ]
+    ports:
+      - "5002:5432"
+    volumes:
+      - node2_data:/data
+      - ./scripts/local-env/init-node.sh:/opt/init-node.sh
+    networks:
+      - pgaf_net
+    depends_on:
+      - monitor
+
+  switchover-orchestrator:
+    image: citusdata/pg_auto_failover:v2.0-pg15
+    container_name: switchover_bot
+    environment:
+      - PG_AUTOCTL_MONITOR=postgresql://autoctl_node@monitor:5432/pg_auto_failover
+    networks:
+      - pgaf_net
+    depends_on:
+      - monitor
+      - node1
+      - node2
+    command: ["/bin/bash", "/opt/switchover.sh"]
+    volumes:
+      - ./scripts/local-env/switchover.sh:/opt/switchover.sh
+
+  sftp-pwd:
+    image: atmoz/sftp:alpine
+    container_name: local-sftp-pwd
+    ports:
+      - "2221:22"
+    command: pwduser:pwdpass:::upload
+    volumes:
+      - ./local-env/sftp-pwd-upload:/home/pwduser/upload
+
+  sftp-key:
+    image: atmoz/sftp:alpine
+    container_name: local-sftp-key
+    ports:
+      - "2222:22"
+    command: keyuser::1001::upload
+    volumes:
+      - ./local-env/keys/local_rsa.pub:/home/keyuser/.ssh/keys/local_rsa.pub:ro
+      - ./local-env/sftp-key-upload:/home/keyuser/upload
+
+  sftp-mfa:
+    image: atmoz/sftp:alpine
+    container_name: local-sftp-mfa
+    ports:
+      - "2223:22"
+    command: mfauser:mfapass:1002::upload
+    volumes:
+      - ./local-env/keys/local_rsa.pub:/home/mfauser/.ssh/keys/local_rsa.pub:ro
+      - ./local-env/sftp-mfa-upload:/home/mfauser/upload
+
+volumes:
+  monitor_data:
+  node1_data:
+  node2_data:
+
+networks:
+  pgaf_net:
+    driver: bridge

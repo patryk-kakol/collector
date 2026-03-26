@@ -1,0 +1,50 @@
+spring:
+  main:
+    banner-mode: "off"
+  application:
+    name: sftp-scanner-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:sftpdb}
+    url-parameters: "?targetServerType=primary&tcpKeepAlive=true&socketTimeout=30&loginTimeout=10&currentSchema=collector"
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
+    hikari:
+      max-lifetime: 900000
+      keepalive-time: 300000
+      maximum-pool-size: 10
+      validation-timeout: 15000
+      connection-timeout: 5000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+jobrunr:
+  background-job-server:
+    enabled: true
+  dashboard:
+    enabled: true
+    port: 8000
+  jobs:
+    default-retries: 3
+    logging:
+      enabled: true
+
+sftp:
+  scan-interval-minutes: 10
+  servers:
+    - id: "legacy-server-prod"
+      host: "ftp.old-system.corp"
+      port: 22
+      username: "admin"
+      auth-type: "PASSWORD"
+      password: "SuperSecretPassword123!"
+    - id: "mfa-gateway-prod"
+      host: "mfa.gateway.corp"
+      port: 22
+      username: "ext_user"
+      auth-type: "PASSWORD_AND_KEY"
+      password: "TemporaryToken88"
+      private-key-path: "/etc/secrets/ssh/mfa_rsa"

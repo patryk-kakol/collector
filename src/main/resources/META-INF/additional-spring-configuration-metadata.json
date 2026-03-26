@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "spring.datasrouce.url-parameters",
+      "type": "java.lang.String",
+      "description": "Additional custom datasource url pamaters",
+      "defaultValue": "hello"
+    }
+  ]
+}

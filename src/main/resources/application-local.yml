@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: "jdbc:postgresql://localhost:5001,localhost:5002/postgres${spring.datasource.url-parameters}"
+    username: collector
+    password: collector
+    driver-class-name: org.postgresql.Driver
+
+sftp:
+  scan-interval-minutes: 1 # Faster scan for local env
+  servers:
+    - id: "local-sftp-pwd"
+      host: "localhost"
+      port: 2221
+      username: "pwduser"
+      auth-type: "PASSWORD"
+      password: "pwdpass"
+    - id: "local-sftp-key"
+      host: "localhost"
+      port: 2222
+      username: "keyuser"
+      auth-type: "KEY"
+      private-key-path: "local-env/keys/local_rsa"
+    - id: "local-sftp-mfa"
+      host: "localhost"
+      port: 2223
+      username: "mfauser"
+      auth-type: "PASSWORD_AND_KEY"
+      password: "mfapass"
+      private-key-path: "local-env/keys/local_rsa"

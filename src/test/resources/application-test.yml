@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  liquibase:
+    enabled: false
+
+sftp:
+  scan-interval-minutes: 1
+  servers: # Dynamically overwritten during tests by Testcontainers

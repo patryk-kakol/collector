@@ -1,0 +1,74 @@
+plugins {
+    id 'org.springframework.boot' version '4.0.0'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'java'
+}
+
+group = 'org.pk.collector'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    all {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    }
+}
+
+dependencies {
+    implementation platform('org.testcontainers:testcontainers-bom:1.19.8')
+    
+    // Spring Boot Core, Data JPA & JDBC Batching
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    
+    // JSON mapping for Spring Boot / JobRunr
+    implementation 'org.springframework.boot:spring-boot-starter-json'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.core:jackson-core'
+
+    // High performance replacement for standard logging: Log4j2
+    implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+
+    // Project Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // JobRunr configuration
+    implementation 'org.jobrunr:jobrunr-spring-boot-4-starter:8.5.1'
+
+    // Database and Liquibase migrations
+    implementation 'org.springframework.boot:spring-boot-starter-liquibase'
+    runtimeOnly 'org.yaml:snakeyaml'
+    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'com.h2database:h2'
+
+    // SFTP Client (Apache MINA SSHD)
+    implementation 'org.apache.sshd:sshd-core:2.13.2'
+    implementation 'org.apache.sshd:sshd-sftp:2.13.2'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+
+    // DevTools for hot swapping
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // Test Libraries
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.testcontainers:testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}

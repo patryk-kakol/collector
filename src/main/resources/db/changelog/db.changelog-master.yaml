@@ -1,0 +1,70 @@
+
+databaseChangeLog:
+  - changeSet:
+      id: "1.0-create-sftp-files-table"
+      author: "system-architect"
+      changes:
+        - createTable:
+            tableName: "sftp_file_registry"
+            columns:
+              - column:
+                  name: "id"
+                  type: "VARCHAR(255)"
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: "server_id"
+                  type: "VARCHAR(255)"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: "file_name"
+                  type: "VARCHAR(255)"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: "file_path"
+                  type: "VARCHAR(2048)"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: "file_size"
+                  type: "BIGINT"
+              - column:
+                  name: "creation_timestamp"
+                  type: "TIMESTAMP WITH TIME ZONE"
+              - column:
+                  name: "modification_timestamp"
+                  type: "TIMESTAMP WITH TIME ZONE"
+              - column:
+                  name: "last_scanned_at"
+                  type: "TIMESTAMP WITH TIME ZONE"
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: "idx_server_path_unique"
+            tableName: "sftp_file_registry"
+            unique: true
+            columns:
+              - column:
+                  name: "server_id"
+              - column:
+                  name: "file_path"
+
+  - changeSet:
+      id: "1.1-create-system-state-table"
+      author: "system-architect"
+      changes:
+        - createTable:
+            tableName: "system_state"
+            columns:
+              - column:
+                  name: "id"
+                  type: "VARCHAR(255)"
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: "last_completed_at"
+                  type: "TIMESTAMP WITH TIME ZONE"
