@@ -1,5 +1,12 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run local" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+  <configuration default="false" name="Run local" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" singleton="false">
+    <additionalParameters>
+      <param>
+        <option name="enabled" value="true" />
+        <option name="name" value="management.endpoint.env.show-values" />
+        <option name="value" value="when_authorized" />
+      </param>
+    </additionalParameters>
     <module name="collector.main" />
     <option name="PROGRAM_PARAMETERS" value="--spring.profiles.active=local" />
     <selectedOptions>

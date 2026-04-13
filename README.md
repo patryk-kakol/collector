@@ -7,12 +7,13 @@ This Spring Boot application is designed to periodically scan configured SFTP se
 To make local development and testing easy, a complete environment is provided via Docker Compose. This environment spins up a replicated database setup along with mock SFTP servers:
 
 1.  **pgaf_monitor**: PostgreSQL Monitor node
-1.  **pgaf_node1**: PostgreSQL Node 1
-1.  **pgaf_node2**: PostgreSQL Node 2
-2.  **switchover_bot**: Schema initializer and switchover orchestrator working in 5 minute loop
-3.  **local-sftp-pwd**: Mock server configured for password authentication.
-4.  **local-sftp-key**: Mock server configured for SSH key authentication.
-5.  **local-sftp-mfa**: Mock server configured for both password and key authentication.
+2.  **pgaf_node1**: PostgreSQL Node 1
+3.  **pgaf_node2**: PostgreSQL Node 2
+4.  **setup-schema**: Schema initializer, also allowing for schema reset when `RESET_DB=true` 
+5.  **switchover_orchestrator**: Switchover orchestrator working in `SWITCHOVER_INTERVAL_MINUTES` loop
+6.  **local-sftp-pwd**: Mock server configured for password authentication.
+7.  **local-sftp-key**: Mock server configured for SSH key authentication.
+8.  **local-sftp-mfa**: Mock server configured for both password and key authentication.
 
 ### Prerequisites
 
@@ -44,7 +45,7 @@ Start the databases and all SFTP mock servers in the background:
 docker-compose up -d
 ```
 
-*(If you are switching from a previous non-replicated setup, make sure to wipe old volumes first with `docker-compose down -v` before running `up -d` This action also usually solves most other issues you can encounter.)*.
+*(If you modified the setup, make sure to wipe old volumes first with `docker-compose down -v` before running `up -d` This action also usually solves most other issues you can encounter.)*.
 
 #### 3. Run the Application
 
@@ -72,7 +73,7 @@ To see the application in action, you can drop files into the mapped local direc
 
 *(If these directories don't exist yet, Docker will create them, or you can create them manually).*
 
-Watch your application logs. Within a minute, you should see the `SftpProcessingService` detect the new files and save their metadata to the database.
+Watch your application logs. Within a minute, you should see the `SftpScanningJob` detect the new files and save their metadata to the database.
 
 #### 5. Database Connection Instructions
 
@@ -88,7 +89,7 @@ You can connect to the local PostgreSQL databases using IntelliJ's Database tool
 
 #### 6. Spring Dev Tools: Automatic Restart
 
-Tou can develop application in automatic restart mode, to instantly apply changes to running application. To do so ensure following IntelliJ settings are set:
+You can develop an application in automatic restart mode to instantly apply changes to the running application. To do so, ensure the following IntelliJ settings are set:
 
 *   **Settings > Build, Execution, Deployment > Compiler > Build project automatically :** `ENABLE`
 *   **Settings > Advanced Settings > Allow auto-make to start even if developed application is currently running :** `ENABLE`

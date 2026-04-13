@@ -22,6 +22,7 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
 jobrunr:
+  update-check-enabled: false
   background-job-server:
     enabled: true
   dashboard:
@@ -33,7 +34,6 @@ jobrunr:
       enabled: true
 
 sftp:
-  scan-interval-minutes: 10
   servers:
     - id: "legacy-server-prod"
       host: "ftp.old-system.corp"

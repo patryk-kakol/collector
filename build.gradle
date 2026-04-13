@@ -38,6 +38,8 @@ dependencies {
 
     // High performance replacement for standard logging: Log4j2
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    annotationProcessor 'org.apache.logging.log4j:log4j-core'
 
     // Project Lombok
     compileOnly 'org.projectlombok:lombok'
@@ -46,7 +48,7 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
 
     // JobRunr configuration
-    implementation 'org.jobrunr:jobrunr-spring-boot-4-starter:8.5.1'
+    implementation 'org.jobrunr:jobrunr-spring-boot-4-starter:8.5.2'
 
     // Database and Liquibase migrations
     implementation 'org.springframework.boot:spring-boot-starter-liquibase'

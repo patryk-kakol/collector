@@ -5,8 +5,11 @@ spring:
     password: collector
     driver-class-name: org.postgresql.Driver
 
+jobrunr:
+  dashboard:
+    port: 0
+
 sftp:
-  scan-interval-minutes: 1 # Faster scan for local env
   servers:
     - id: "local-sftp-pwd"
       host: "localhost"

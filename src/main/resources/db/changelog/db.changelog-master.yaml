@@ -68,3 +68,35 @@ databaseChangeLog:
               - column:
                   name: "last_completed_at"
                   type: "TIMESTAMP WITH TIME ZONE"
+  - changeSet:
+      id: 3-create-job-state-table
+      author: system-orchestrator
+      changes:
+        - createTable:
+            tableName: job_state
+            columns:
+              - column:
+                  name: id
+                  type: varchar(255)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: last_run_started_at
+                  type: timestamp
+                  remarks: "Tracks when the watchdog last locked the job"
+              - column:
+                  name: last_run_ended_at
+                  type: timestamp
+                  remarks: "Tracks when the background execution finished to calculate fixed delay"
+              - column:
+                  name: is_running
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+                  remarks: "Mutex lock to prevent concurrent executions across cluster nodes"
+              - column:
+                  name: current_execution_id
+                  type: varchar(36)
+                  remarks: "Idempotency key to prevent restart overlaps"
