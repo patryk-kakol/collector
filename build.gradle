@@ -61,6 +61,6 @@ dependencies {
     testImplementation 'org.testcontainers:postgresql'
 }
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
     useJUnitPlatform()
 }

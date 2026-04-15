@@ -7,7 +7,6 @@ import net.schmizz.sshj.transport.verification.PromiscuousVerifier;
 import org.pk.collector.config.SftpProperties.ServerConfig;
 import org.springframework.stereotype.Component;
 
-
 @Slf4j
 @Component
 public class SftpClientProvider {
@@ -20,9 +19,12 @@ public class SftpClientProvider {
 
       if (config.proxy() != null) {
         log.info(
-                "Routing through SOCKS5 proxy {}:{}", config.proxy().host(), config.proxy().port());
+            "Routing through SOCKS5 proxy {}:{} to node: {}",
+            config.proxy().host(),
+            config.proxy().port(),
+            config.id());
         client.setSocketFactory(
-                new Socks5SocketFactory(config.proxy().host(), config.proxy().port()));
+            new Socks5SocketFactory(config.proxy().host(), config.proxy().port()));
       }
 
       client.connect(config.host(), config.port());

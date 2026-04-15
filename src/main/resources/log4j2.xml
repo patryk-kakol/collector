@@ -7,6 +7,7 @@
         <File name="File" fileName="build/logs/collector.log">
             <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
         </File>
+        <JobRunrAppender name="JobRunrDashboard"/>
     </Appenders>
     <Loggers>
         <Root level="info">
@@ -16,6 +17,16 @@
         <Logger name="org.pk.collector" level="debug" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
+        </Logger>
+        <Logger name="org.pk.collector.integration.sftp.SftpClientProvider" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File"/>
+            <AppenderRef ref="JobRunrDashboard"/>
+        </Logger>
+        <Logger name="net.schmizz.sshj" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File"/>
+            <AppenderRef ref="JobRunrDashboard"/>
         </Logger>
         <Logger name="org.springframework" level="info" additivity="false">
             <AppenderRef ref="Console"/>
