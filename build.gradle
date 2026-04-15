@@ -26,45 +26,35 @@ configurations {
 dependencies {
     implementation platform('org.testcontainers:testcontainers-bom:1.19.8')
     
-    // Spring Boot Core, Data JPA & JDBC Batching
+    /* Spring Boot Core, Data JPA & JDBC Batching */
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    
-    // JSON mapping for Spring Boot / JobRunr
+    /* JSON mapping for Spring Boot / JobRunr */
     implementation 'org.springframework.boot:spring-boot-starter-json'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.core:jackson-core'
-
-    // High performance replacement for standard logging: Log4j2
+    /* Logging: Log4j2 */
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     annotationProcessor 'org.apache.logging.log4j:log4j-core'
-
-    // Project Lombok
+    /* Lombok */
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
-
-    // JobRunr configuration
+    /* JobRunr configuration */
     implementation 'org.jobrunr:jobrunr-spring-boot-4-starter:8.5.2'
-
-    // Database and Liquibase migrations
+    /* Database and Liquibase migrations */
     implementation 'org.springframework.boot:spring-boot-starter-liquibase'
     runtimeOnly 'org.yaml:snakeyaml'
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'com.h2database:h2'
-
-    // SFTP Client (Apache MINA SSHD)
-    implementation 'org.apache.sshd:sshd-core:2.13.2'
-    implementation 'org.apache.sshd:sshd-sftp:2.13.2'
-    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
-
-    // DevTools for hot swapping
+    /* SFTP Client: SSHJ */
+    implementation 'com.hierynomus:sshj:0.38.0'
+    /* DevTools for hot swapping */
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
-
-    // Test Libraries
+    /* Tests */
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.testcontainers:testcontainers'
     testImplementation 'org.testcontainers:junit-jupiter'

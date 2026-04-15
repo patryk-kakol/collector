@@ -32,6 +32,9 @@ jobrunr:
     default-retries: 3
     logging:
       enabled: true
+collector:
+  jobs:
+    sftp-scanning-interval-minutes: 5
 
 sftp:
   servers:
@@ -41,6 +44,9 @@ sftp:
       username: "admin"
       auth-type: "PASSWORD"
       password: "SuperSecretPassword123!"
+      proxy:
+        host: "127.0.0.1"
+        port: 1080
     - id: "mfa-gateway-prod"
       host: "mfa.gateway.corp"
       port: 22
@@ -48,3 +54,6 @@ sftp:
       auth-type: "PASSWORD_AND_KEY"
       password: "TemporaryToken88"
       private-key-path: "/etc/secrets/ssh/mfa_rsa"
+      proxy:
+        host: "127.0.0.1"
+        port: 1080

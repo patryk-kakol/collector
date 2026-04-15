@@ -9,11 +9,12 @@ To make local development and testing easy, a complete environment is provided v
 1.  **pgaf_monitor**: PostgreSQL Monitor node
 2.  **pgaf_node1**: PostgreSQL Node 1
 3.  **pgaf_node2**: PostgreSQL Node 2
-4.  **setup-schema**: Schema initializer, also allowing for schema reset when `RESET_DB=true` 
+4.  **setup_schema**: Schema initializer, also allowing for schema reset when `RESET_DB=true` 
 5.  **switchover_orchestrator**: Switchover orchestrator working in `SWITCHOVER_INTERVAL_MINUTES` loop
-6.  **local-sftp-pwd**: Mock server configured for password authentication.
-7.  **local-sftp-key**: Mock server configured for SSH key authentication.
-8.  **local-sftp-mfa**: Mock server configured for both password and key authentication.
+6.  **socks-proxy**: SOCKS5 proxy that routes all SFTP traffic (gost-based)
+7.  **local-sftp-pwd**: Mock server configured for password authentication.
+8.  **local-sftp-key**: Mock server configured for SSH key authentication.
+9.  **local-sftp-mfa**: Mock server configured for both password and key authentication.
 
 ### Prerequisites
 
@@ -63,7 +64,9 @@ Start the Spring Boot application using the `local` profile. This profile tells 
 
 #### 4. Testing the SFTP Scanning
 
-Once the application is running, it will automatically scan the configured servers every 1 minute (as defined in `application-local.yml`).
+Once the application is running, it will automatically scan the configured servers every 1 minute (as defined in `application-local.yml`). 
+
+*Note: All local SFTP servers are hidden behind a SOCKS5 proxy (`socks-proxy` on port 1080) to simulate actual environments.*
 
 To see the application in action, you can drop files into the mapped local directories:
 
@@ -85,7 +88,7 @@ You can connect to the local PostgreSQL databases using IntelliJ's Database tool
 *   **Authentication:** `User & Password`
 *   **User:** `collector`
 *   **Password:** `collector`
-*   **URL:** `jdbc:postgresql://localhost:5001,localhost:5002/postgres?targetServerType=primary`
+*   **URL:** `jdbc:postgresql://localhost:5001,localhost:5002/postgres?targetServerType=primary&currentSchema=collector`
 
 #### 6. Spring Dev Tools: Automatic Restart
 
@@ -105,4 +108,4 @@ When you are done developing, you can stop and remove the Docker containers:
 docker-compose down
 ```
 
-*(Note: The database data is persisted in Docker volumes named `postgres-primary-data` and `postgres-standby-data`. If you want to completely wipe the databases and start fresh next time, use `docker-compose down -v`)*.
+*(Note: The database data is persisted in Docker volumes named `monitor_data`, `node1_data` and `node2_data`. If you want to completely wipe the databases and start fresh next time, use `docker-compose down -v`)*.

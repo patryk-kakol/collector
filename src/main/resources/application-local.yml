@@ -9,24 +9,37 @@ jobrunr:
   dashboard:
     port: 0
 
+collector:
+  jobs:
+    sftp-scanning-interval-minutes: 3
+
 sftp:
   servers:
     - id: "local-sftp-pwd"
-      host: "localhost"
-      port: 2221
+      host: "local-sftp-pwd"
+      port: 22
       username: "pwduser"
       auth-type: "PASSWORD"
       password: "pwdpass"
+      proxy:
+        host: "127.0.0.1"
+        port: 1080
     - id: "local-sftp-key"
-      host: "localhost"
-      port: 2222
+      host: "local-sftp-key"
+      port: 22
       username: "keyuser"
       auth-type: "KEY"
       private-key-path: "local-env/keys/local_rsa"
+      proxy:
+        host: "127.0.0.1"
+        port: 1080
     - id: "local-sftp-mfa"
-      host: "localhost"
-      port: 2223
+      host: "local-sftp-mfa"
+      port: 22
       username: "mfauser"
       auth-type: "PASSWORD_AND_KEY"
       password: "mfapass"
       private-key-path: "local-env/keys/local_rsa"
+      proxy:
+        host: "127.0.0.1"
+        port: 1080

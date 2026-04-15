@@ -1,65 +1,56 @@
 package org.pk.collector.integration.sftp;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.sshd.client.SshClient;
-import org.apache.sshd.client.session.ClientSession;
-import org.apache.sshd.sftp.client.SftpClientFactory;
-import org.apache.sshd.sftp.client.SftpClient;
-import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
+import net.schmizz.sshj.SSHClient;
+import net.schmizz.sshj.sftp.SFTPClient;
+import net.schmizz.sshj.transport.verification.PromiscuousVerifier;
 import org.pk.collector.config.SftpProperties.ServerConfig;
 import org.springframework.stereotype.Component;
 
-import java.nio.file.Paths;
-import java.time.Duration;
 
 @Slf4j
 @Component
 public class SftpClientProvider {
 
-  private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(15);
-  private static final Duration AUTH_TIMEOUT = Duration.ofSeconds(15);
-
   public void executeWithClient(ServerConfig config, SftpCallback callback) throws Exception {
-    try (SshClient client = SshClient.setUpDefaultClient()) {
-      client.start();
-      log.info("Establishing protected connection with host: {}", config.id());
+    try (SSHClient client = new SSHClient()) {
+      client.addHostKeyVerifier(new PromiscuousVerifier());
 
-      try (ClientSession session =
-          client
-              .connect(config.username(), config.host(), config.port())
-              .verify(CONNECT_TIMEOUT)
-              .getSession()) {
+      log.info("Establishing session for node: {}", config.id());
 
-        configureAuthentication(session, config);
-        session.auth().verify(AUTH_TIMEOUT);
+      if (config.proxy() != null) {
+        log.info(
+                "Routing through SOCKS5 proxy {}:{}", config.proxy().host(), config.proxy().port());
+        client.setSocketFactory(
+                new Socks5SocketFactory(config.proxy().host(), config.proxy().port()));
+      }
 
-        try (SftpClient sftpClient = SftpClientFactory.instance().createSftpClient(session)) {
-          callback.doWithSftpClient(sftpClient, config);
+      client.connect(config.host(), config.port());
+
+      configureAuthentication(client, config);
+      log.info("Authentication successful for node: {}", config.id());
+
+      try (SFTPClient sftpClient = client.newSFTPClient()) {
+        callback.doWithSftpClient(sftpClient, config);
+      }
+    }
+  }
+
+  private void configureAuthentication(SSHClient client, ServerConfig config) throws Exception {
+    switch (config.authType()) {
+      case PASSWORD -> client.authPassword(config.username(), config.password());
+      case KEY -> client.authPublickey(config.username(), config.privateKeyPath());
+      case PASSWORD_AND_KEY -> {
+        client.authPublickey(config.username(), config.privateKeyPath());
+        if (!client.isAuthenticated()) {
+          client.authPassword(config.username(), config.password());
         }
       }
     }
   }
 
-  private void configureAuthentication(ClientSession session, ServerConfig config) {
-    switch (config.authType()) {
-      case PASSWORD -> session.addPasswordIdentity(config.password());
-      case KEY -> loadKeyIdentity(session, config.privateKeyPath());
-      case PASSWORD_AND_KEY -> {
-        loadKeyIdentity(session, config.privateKeyPath());
-        session.addPasswordIdentity(config.password());
-      }
-    }
-  }
-
-  private void loadKeyIdentity(ClientSession session, String keyPath) {
-    if (keyPath == null || keyPath.isBlank()) {
-      throw new IllegalArgumentException("Key parameter is unavailable.");
-    }
-    session.setKeyIdentityProvider(new FileKeyPairProvider(Paths.get(keyPath)));
-  }
-
   @FunctionalInterface
   public interface SftpCallback {
-    void doWithSftpClient(SftpClient client, ServerConfig config) throws Exception;
+    void doWithSftpClient(SFTPClient client, ServerConfig config) throws Exception;
   }
 }

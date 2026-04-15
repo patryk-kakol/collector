@@ -88,7 +88,7 @@ public class JobrunrVirtualThreadLogger {
   }
 
   /* DASHBOARD ROUTER */
-  private void logToDashboard(String level, String message) {
+  protected void logToDashboard(String level, String message) {
     if (ThreadLocalJobContext.hasJobContext()) {
       var dashboardLogger = ThreadLocalJobContext.getJobContext().logger();
       switch (level) {

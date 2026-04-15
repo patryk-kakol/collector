@@ -7,6 +7,7 @@ import org.pk.collector.core.repository.SftpFileBatchRepository;
 import org.pk.collector.integration.sftp.RecursiveSftpScanner;
 import org.pk.collector.integration.sftp.SftpClientProvider;
 import org.pk.collector.monitoring.JobrunrVirtualThreadLogger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -27,6 +28,9 @@ public class SftpScanningJob implements FixedDelayJob {
   private final SftpFileBatchRepository batchRepository;
   private final SftpProperties properties;
 
+  @Value("${collector.jobs.sftp-scanning-interval-minutes:2}")
+  private long scanningIntervalMinutes;
+
   @Override
   public String getJobId() {
     return "sftp-scanning-job";
@@ -34,7 +38,7 @@ public class SftpScanningJob implements FixedDelayJob {
 
   @Override
   public Duration getDelay() {
-    return Duration.ofMinutes(2);
+    return Duration.ofMinutes(scanningIntervalMinutes);
   }
 
   @Override

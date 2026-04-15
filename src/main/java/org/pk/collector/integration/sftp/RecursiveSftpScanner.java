@@ -1,8 +1,9 @@
 package org.pk.collector.integration.sftp;
 
-import org.apache.sshd.sftp.client.SftpClient;
-import org.apache.sshd.sftp.client.SftpClient.Attributes;
-import org.apache.sshd.sftp.client.SftpClient.DirEntry;
+import net.schmizz.sshj.sftp.FileAttributes;
+import net.schmizz.sshj.sftp.FileMode;
+import net.schmizz.sshj.sftp.RemoteResourceInfo;
+import net.schmizz.sshj.sftp.SFTPClient;
 import org.pk.collector.core.model.SftpFileRecord;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +24,7 @@ public class RecursiveSftpScanner {
 
   /* Injects the scanning stream into the Consumer every thousand files without destroying memory */
   public void scanAll(
-      SftpClient client,
+      SFTPClient client,
       String rootPath,
       String serverId,
       Consumer<List<SftpFileRecord>> batchProcessor)
@@ -38,27 +39,27 @@ public class RecursiveSftpScanner {
   }
 
   private void traverseDirectory(
-      SftpClient client,
+      SFTPClient client,
       String currentPath,
       String serverId,
       List<SftpFileRecord> buffer,
       Consumer<List<SftpFileRecord>> batchProcessor)
       throws IOException {
-    Iterable<DirEntry> entries = client.readDir(currentPath);
 
-    for (DirEntry entry : entries) {
-      String filename = entry.getFilename();
+    List<RemoteResourceInfo> entries = client.ls(currentPath);
+
+    for (RemoteResourceInfo entry : entries) {
+      String filename = entry.getName();
       if (filename.equals(".") || filename.equals("..")) {
         continue;
       }
 
-      String fullPath =
-          currentPath.endsWith("/") ? currentPath + filename : currentPath + "/" + filename;
-      Attributes attrs = entry.getAttributes();
+      String fullPath = entry.getPath();
+      FileAttributes attrs = entry.getAttributes();
 
-      if (attrs.isDirectory()) {
+      if (attrs.getType() == FileMode.Type.DIRECTORY) {
         traverseDirectory(client, fullPath, serverId, buffer, batchProcessor);
-      } else if (attrs.isRegularFile()) {
+      } else if (attrs.getType() == FileMode.Type.REGULAR) {
         buffer.add(buildRecord(serverId, filename, fullPath, attrs));
 
         if (buffer.size() >= BATCH_SIZE) {
@@ -70,17 +71,15 @@ public class RecursiveSftpScanner {
   }
 
   private SftpFileRecord buildRecord(
-      String serverId, String fileName, String filePath, Attributes attrs) {
+      String serverId, String fileName, String filePath, FileAttributes attrs) {
     SftpFileRecord record = new SftpFileRecord();
     record.setId(generateDeterministicId(serverId, filePath));
     record.setServerId(serverId);
     record.setFileName(fileName);
     record.setFilePath(filePath);
     record.setFileSize(attrs.getSize());
-    record.setCreationTimestamp(
-        attrs.getCreateTime() != null ? attrs.getCreateTime().toInstant() : null);
-    record.setModificationTimestamp(
-        attrs.getModifyTime() != null ? attrs.getModifyTime().toInstant() : null);
+    record.setCreationTimestamp(Instant.ofEpochSecond(attrs.getMtime()));
+    record.setModificationTimestamp(Instant.ofEpochSecond(attrs.getMtime()));
     record.setLastScannedAt(Instant.now());
     return record;
   }
