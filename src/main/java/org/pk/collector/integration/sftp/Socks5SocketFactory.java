@@ -38,22 +38,22 @@ public class Socks5SocketFactory extends SocketFactory {
   // These must be overridden to satisfy the abstract class but are safely ignored.
   @Override
   public Socket createSocket(String host, int port) {
-    return null;
+    throw new UnsupportedOperationException("This method is not supported");
   }
 
   @Override
   public Socket createSocket(String host, int port, InetAddress localHost, int localPort) {
-    return null;
+    throw new UnsupportedOperationException("This method is not supported");
   }
 
   @Override
   public Socket createSocket(InetAddress host, int port) {
-    return null;
+    throw new UnsupportedOperationException("This method is not supported");
   }
 
   @Override
   public Socket createSocket(
       InetAddress address, int port, InetAddress localAddress, int localPort) {
-    return null;
+    throw new UnsupportedOperationException("This method is not supported");
   }
 }

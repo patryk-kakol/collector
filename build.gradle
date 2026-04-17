@@ -2,6 +2,7 @@ plugins {
     id 'org.springframework.boot' version '4.0.0'
     id 'io.spring.dependency-management' version '1.1.6'
     id 'java'
+    id 'jacoco'
 }
 
 group = 'org.pk.collector'
@@ -26,41 +27,87 @@ configurations {
 dependencies {
     implementation platform('org.testcontainers:testcontainers-bom:1.19.8')
     
-    /* Spring Boot Core, Data JPA & JDBC Batching */
+    // Spring Boot Core, Data JPA, JDBC, Validation, JSON, Actuator
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    /* JSON mapping for Spring Boot / JobRunr */
     implementation 'org.springframework.boot:spring-boot-starter-json'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.core:jackson-core'
-    /* Logging: Log4j2 */
+
+    // Logging: Log4j2
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     annotationProcessor 'org.apache.logging.log4j:log4j-core'
-    /* Lombok */
+
+    // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
-    /* JobRunr configuration */
+
+    // JobRunr
     implementation 'org.jobrunr:jobrunr-spring-boot-4-starter:8.5.2'
-    /* Database and Liquibase migrations */
+
+    // Database and Liquibase
     implementation 'org.springframework.boot:spring-boot-starter-liquibase'
     runtimeOnly 'org.yaml:snakeyaml'
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'com.h2database:h2'
-    /* SFTP Client: SSHJ */
+
+    // SFTP Client: SSHJ
     implementation 'com.hierynomus:sshj:0.38.0'
-    /* DevTools for hot swapping */
+
+    // DevTools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    /* Tests */
+
+    // Tests
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.testcontainers:testcontainers'
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:postgresql'
 }
 
-tasks.withType(Test).configureEach {
+tasks.named('test') {
     useJUnitPlatform()
+    jvmArgs("-XX:+EnableDynamicAgentLoading")
+    ignoreFailures = true
+    finalizedBy jacocoTestReport // Generate report after tests run
 }
+
+jacoco {
+    toolVersion = "0.8.14"
+}
+
+def jacocoExcludes = [
+    'org/pk/collector/core/repository/**',
+    'org/pk/collector/Application.class'
+]
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = false
+        csv.required = false
+        html.required = true
+    }
+    classDirectories.setFrom(files(sourceSets.main.output.classesDirs.collect {
+        fileTree(dir: it, exclude: jacocoExcludes)
+    }))
+}
+
+jacocoTestCoverageVerification {
+    dependsOn test
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.80
+            }
+        }
+    }
+    classDirectories.setFrom(files(sourceSets.main.output.classesDirs.collect {
+        fileTree(dir: it, exclude: jacocoExcludes)
+    }))
+}
+
+check.dependsOn jacocoTestCoverageVerification

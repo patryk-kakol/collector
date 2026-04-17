@@ -4,15 +4,20 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Column;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import java.time.Instant;
 
 @Entity
-@Table(name = "sftp_file_registry")
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "sftp_file_registry")
 public class SftpFileRecord {
+
   @Id
   @Column(name = "id", nullable = false, updatable = false)
   private String id;

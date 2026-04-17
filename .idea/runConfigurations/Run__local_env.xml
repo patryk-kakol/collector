@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run local" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" singleton="false">
+  <configuration default="false" name="Run: local env" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" singleton="false">
     <additionalParameters>
       <param>
         <option name="enabled" value="true" />

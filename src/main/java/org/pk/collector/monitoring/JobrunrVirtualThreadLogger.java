@@ -84,7 +84,7 @@ public class JobrunrVirtualThreadLogger {
 
     StringWriter sw = new StringWriter();
     t.printStackTrace(new PrintWriter(sw));
-    logToDashboard("ERROR", message + "\n" + sw.toString());
+    logToDashboard("ERROR", message + "\n" + sw);
   }
 
   /* DASHBOARD ROUTER */

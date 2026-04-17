@@ -12,6 +12,7 @@ import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.jobrunr.server.runner.ThreadLocalJobContext;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 @Plugin(
@@ -22,6 +23,7 @@ import java.io.Serializable;
 )
 public class JobRunrAppender extends AbstractAppender implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     protected JobRunrAppender(String name, Filter filter) {
@@ -44,9 +46,6 @@ public class JobRunrAppender extends AbstractAppender implements Serializable {
                 String message = getLayout().toSerializable(event).toString();
 
                 switch (event.getLevel().getStandardLevel()) {
-                    case INFO:
-                        dashboardLogger.info(message);
-                        break;
                     case WARN:
                         dashboardLogger.warn(message);
                         break;
@@ -54,12 +53,12 @@ public class JobRunrAppender extends AbstractAppender implements Serializable {
                     case FATAL:
                         dashboardLogger.error(message);
                         break;
+                    case INFO:
                     default:
                         dashboardLogger.info(message);
                 }
             } catch (Exception e) {
-                // Fallback - nie przerywaj logowania jeśli coś pójdzie nie tak
-                System.err.println("Error routing log to JobRunr: " + e.getMessage());
+                error("Error routing log to JobRunr", event, e);
             }
         }
     }
