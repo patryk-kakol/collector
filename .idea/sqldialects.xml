@@ -2,5 +2,7 @@
 <project version="4">
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/src/main/java/org/pk/collector/core/repository/SftpFileBatchRepository.java" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/src/test/java/org/pk/collector/integration/H2RepositoryOverrideConfig.java" dialect="H2" />
+    <file url="file://$PROJECT_DIR$/src/test/java/org/pk/collector/integration/SftpScanningIntegrationTest.java" dialect="H2" />
   </component>
 </project>

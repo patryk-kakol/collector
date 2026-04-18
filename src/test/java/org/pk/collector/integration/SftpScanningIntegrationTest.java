@@ -8,20 +8,15 @@ import org.jobrunr.jobs.context.JobContext;
 import org.jobrunr.jobs.context.JobDashboardLogger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.pk.collector.config.SftpProperties;
-import org.pk.collector.core.model.SftpFileRecord;
-import org.pk.collector.core.repository.SftpFileBatchRepository;
 import org.pk.collector.jobs.SftpScanningJob;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,17 +24,17 @@ import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PublicKey;
-import java.sql.Timestamp;
-import java.sql.Types;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings({"resource", "ResultOfMethodCallIgnored", "SpringBootApplicationProperties"})
 @SpringBootTest(
     properties = {
       // Use H2 memory database
@@ -52,7 +47,7 @@ import static org.mockito.Mockito.when;
       "org.jobrunr.database.type=sql",
       "spring.main.allow-bean-definition-overriding=true"
     })
-@Import(SftpScanningIntegrationTest.H2RepositoryOverrideConfig.class)
+@Import(H2RepositoryOverrideConfig.class)
 class SftpScanningIntegrationTest {
 
   private static SshServer sshServer;
@@ -63,47 +58,7 @@ class SftpScanningIntegrationTest {
 
   @Autowired private JdbcTemplate jdbcTemplate;
 
-  @TestConfiguration
-  static class H2RepositoryOverrideConfig {
-
-    @Bean
-    @Primary
-    public SftpFileBatchRepository sftpFileBatchRepository(JdbcTemplate jdbcTemplate) {
-      return new SftpFileBatchRepository(jdbcTemplate) {
-        @Override
-        public void bulkUpsert(List<SftpFileRecord> records) {
-          // H2 MERGE INTO syntax (database-agnostic upsert replacement for testing)
-          String sql =
-              "MERGE INTO sftp_file_registry (id, server_id, file_name, file_path, file_size, creation_timestamp, modification_timestamp, last_scanned_at) "
-                  + "KEY(id) "
-                  + "VALUES (?,?,?,?,?,?,?,?)";
-
-          jdbcTemplate.batchUpdate(
-              sql,
-              records,
-              1000,
-              (ps, record) -> {
-                ps.setString(1, record.getId());
-                ps.setString(2, record.getServerId());
-                ps.setString(3, record.getFileName());
-                ps.setString(4, record.getFilePath());
-                ps.setObject(5, record.getFileSize(), Types.BIGINT);
-                ps.setTimestamp(
-                    6,
-                    record.getCreationTimestamp() != null
-                        ? Timestamp.from(record.getCreationTimestamp())
-                        : null);
-                ps.setTimestamp(
-                    7,
-                    record.getModificationTimestamp() != null
-                        ? Timestamp.from(record.getModificationTimestamp())
-                        : null);
-                ps.setTimestamp(8, Timestamp.from(record.getLastScannedAt()));
-              });
-        }
-      };
-    }
-  }
+  @MockitoBean private SftpProperties sftpProperties;
 
   @BeforeAll
   static void setUpSshServer() throws Exception {
@@ -133,21 +88,20 @@ class SftpScanningIntegrationTest {
     sshServer.setPort(0); // Random port
     sshServer.setKeyPairProvider(new SimpleGeneratorHostKeyProvider());
 
-    // Setup SFTP Subsystem
+    // Set up SFTP Subsystem
     SftpSubsystemFactory factory = new SftpSubsystemFactory.Builder().build();
     sshServer.setSubsystemFactories(Collections.singletonList(factory));
 
-    // Setup Virtual File System
+    // Set up Virtual File System
     VirtualFileSystemFactory vfsFactory = new VirtualFileSystemFactory(serverRoot.toAbsolutePath());
     sshServer.setFileSystemFactory(vfsFactory);
 
-    // Setup Authentication
+    // Set up Authentication
     sshServer.setPasswordAuthenticator(
-        (username, password, session) ->
-            "testuser".equals(username) && "testpass".equals(password));
+        (username, password, _) -> "testuser".equals(username) && "testpass".equals(password));
 
     sshServer.setPublickeyAuthenticator(
-        (username, key, session) -> "testuser".equals(username) && key.equals(expectedPublicKey));
+        (username, key, _) -> "testuser".equals(username) && key.equals(expectedPublicKey));
 
     sshServer.start();
   }
@@ -164,44 +118,51 @@ class SftpScanningIntegrationTest {
     Files.deleteIfExists(privateKeyPath);
   }
 
-  @DynamicPropertySource
-  static void registerProperties(DynamicPropertyRegistry registry) {
-    // SFTP properties
-    registry.add("sftp.servers[0].id", () -> "server-password");
-    registry.add("sftp.servers[0].host", () -> "localhost");
-    registry.add("sftp.servers[0].port", () -> sshServer.getPort());
-    registry.add("sftp.servers[0].username", () -> "testuser");
-    registry.add("sftp.servers[0].password", () -> "testpass");
-    registry.add("sftp.servers[0].authType", () -> SftpProperties.AuthType.PASSWORD);
-
-    registry.add("sftp.servers[1].id", () -> "server-key");
-    registry.add("sftp.servers[1].host", () -> "localhost");
-    registry.add("sftp.servers[1].port", () -> sshServer.getPort());
-    registry.add("sftp.servers[1].username", () -> "testuser");
-    registry.add(
-        "sftp.servers[1].privateKeyPath", () -> privateKeyPath.toAbsolutePath().toString());
-    registry.add("sftp.servers[1].authType", () -> SftpProperties.AuthType.KEY);
-
-    registry.add("sftp.servers[2].id", () -> "server-both");
-    registry.add("sftp.servers[2].host", () -> "localhost");
-    registry.add("sftp.servers[2].port", () -> sshServer.getPort());
-    registry.add("sftp.servers[2].username", () -> "testuser");
-    registry.add("sftp.servers[2].password", () -> "testpass");
-    registry.add(
-        "sftp.servers[2].privateKeyPath", () -> privateKeyPath.toAbsolutePath().toString());
-    registry.add("sftp.servers[2].authType", () -> SftpProperties.AuthType.PASSWORD_AND_KEY);
+  @BeforeEach
+  void setUp() {
+    // Clear database before each test
+    jdbcTemplate.execute("DELETE FROM sftp_file_registry WHERE true");
   }
 
   @Test
-  void testScanningForAllAuthTypes() throws Exception {
-    // Clear database before test
-    jdbcTemplate.execute("DELETE FROM sftp_file_registry");
+  void testScanningForAllAuthTypes_PositiveScenarios() throws Exception {
+    // Arrange: Use only the good servers
+    List<SftpProperties.ServerConfig> correctServers =
+        List.of(
+            new SftpProperties.ServerConfig(
+                "server-password",
+                "localhost",
+                sshServer.getPort(),
+                "testuser",
+                SftpProperties.AuthType.PASSWORD,
+                "testpass",
+                null,
+                null),
+            new SftpProperties.ServerConfig(
+                "server-key",
+                "localhost",
+                sshServer.getPort(),
+                "testuser",
+                SftpProperties.AuthType.KEY,
+                null,
+                privateKeyPath.toAbsolutePath().toString(),
+                null),
+            new SftpProperties.ServerConfig(
+                "server-both",
+                "localhost",
+                sshServer.getPort(),
+                "testuser",
+                SftpProperties.AuthType.PASSWORD_AND_KEY,
+                "testpass",
+                privateKeyPath.toAbsolutePath().toString(),
+                null));
+    when(sftpProperties.servers()).thenReturn(correctServers);
 
-    // Act
     JobContext mockJobContext = mock(JobContext.class);
     JobDashboardLogger mockDashboardLogger = mock(JobDashboardLogger.class);
     when(mockJobContext.logger()).thenReturn(mockDashboardLogger);
 
+    // Act
     sftpScanningJob.performWork(mockJobContext);
 
     // Assert
@@ -210,12 +171,73 @@ class SftpScanningIntegrationTest {
         jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sftp_file_registry", Integer.class);
     assertEquals(6, count, "Should have scanned 2 files from 3 configured servers");
 
-    // Verify specific server records
     List<String> serverIds =
         jdbcTemplate.queryForList(
             "SELECT DISTINCT server_id FROM sftp_file_registry", String.class);
     assertTrue(serverIds.contains("server-password"));
     assertTrue(serverIds.contains("server-key"));
     assertTrue(serverIds.contains("server-both"));
+  }
+
+  @Test
+  void testScanning_whenWrongPassword_shouldThrowException() {
+    // Arrange: Configure only a single bad server
+    List<SftpProperties.ServerConfig> incorrectServers =
+        List.of(
+            new SftpProperties.ServerConfig(
+                "server-wrong-password",
+                "localhost",
+                sshServer.getPort(),
+                "testuser",
+                SftpProperties.AuthType.PASSWORD,
+                "wrongpass",
+                null,
+                null));
+    when(sftpProperties.servers()).thenReturn(incorrectServers);
+
+    JobContext mockJobContext = mock(JobContext.class);
+    JobDashboardLogger mockDashboardLogger = mock(JobDashboardLogger.class);
+    when(mockJobContext.logger()).thenReturn(mockDashboardLogger);
+
+    // Act & Assert
+    Exception exception =
+        assertThrows(Exception.class, () -> sftpScanningJob.performWork(mockJobContext));
+    assertTrue(exception.getMessage().contains("Communication error"));
+
+    // Database should be empty
+    Integer count =
+        jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sftp_file_registry", Integer.class);
+    assertEquals(0, count);
+  }
+
+  @Test
+  void testScanning_whenServerUnavailable_shouldThrowException() {
+    // Arrange: Configure only a single bad server pointing to a dead port
+    List<SftpProperties.ServerConfig> incorrectServers =
+        List.of(
+            new SftpProperties.ServerConfig(
+                "server-unavailable",
+                "localhost",
+                65535,
+                "testuser",
+                SftpProperties.AuthType.PASSWORD,
+                "testpass",
+                null,
+                null));
+    when(sftpProperties.servers()).thenReturn(incorrectServers);
+
+    JobContext mockJobContext = mock(JobContext.class);
+    JobDashboardLogger mockDashboardLogger = mock(JobDashboardLogger.class);
+    when(mockJobContext.logger()).thenReturn(mockDashboardLogger);
+
+    // Act & Assert
+    Exception exception =
+        assertThrows(Exception.class, () -> sftpScanningJob.performWork(mockJobContext));
+    assertTrue(exception.getMessage().contains("Communication error"));
+
+    // Database should be empty
+    Integer count =
+        jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sftp_file_registry", Integer.class);
+    assertEquals(0, count);
   }
 }
