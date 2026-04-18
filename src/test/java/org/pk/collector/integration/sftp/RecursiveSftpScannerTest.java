@@ -54,10 +54,10 @@ class RecursiveSftpScannerTest {
         return file;
     }
 
-    private RemoteResourceInfo mockDirectory(String name, String path) {
+    private RemoteResourceInfo mockDirectory() {
         RemoteResourceInfo dir = mock(RemoteResourceInfo.class);
-        when(dir.getName()).thenReturn(name);
-        when(dir.getPath()).thenReturn(path);
+        when(dir.getName()).thenReturn("dir1");
+        when(dir.getPath()).thenReturn("/dir1");
         FileAttributes attributes = new FileAttributes.Builder().withType(FileMode.Type.DIRECTORY).build();
         when(dir.getAttributes()).thenReturn(attributes);
         return dir;
@@ -70,7 +70,7 @@ class RecursiveSftpScannerTest {
         String path = "/";
 
         RemoteResourceInfo file1 = mockFile("file1.txt", "/file1.txt", 1024, Instant.now().getEpochSecond());
-        RemoteResourceInfo dir1 = mockDirectory("dir1", "/dir1");
+        RemoteResourceInfo dir1 = mockDirectory();
         RemoteResourceInfo file2 = mockFile("file2.txt", "/dir1/file2.txt", 2048, Instant.now().getEpochSecond());
 
         when(sftpClient.ls(path)).thenReturn(List.of(file1, dir1));

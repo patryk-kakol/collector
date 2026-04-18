@@ -90,11 +90,14 @@ public class JobrunrVirtualThreadLogger {
   /* DASHBOARD ROUTER */
   protected void logToDashboard(String level, String message) {
     if (ThreadLocalJobContext.hasJobContext()) {
-      var dashboardLogger = ThreadLocalJobContext.getJobContext().logger();
-      switch (level) {
-        case "INFO" -> dashboardLogger.info(message);
-        case "WARN" -> dashboardLogger.warn(message);
-        case "ERROR" -> dashboardLogger.error(message);
+      var jobContext = ThreadLocalJobContext.getJobContext();
+      if (jobContext != null && jobContext.logger() != null) {
+        var dashboardLogger = jobContext.logger();
+        switch (level) {
+          case "INFO" -> dashboardLogger.info(message);
+          case "WARN" -> dashboardLogger.warn(message);
+          case "ERROR" -> dashboardLogger.error(message);
+        }
       }
     }
   }
