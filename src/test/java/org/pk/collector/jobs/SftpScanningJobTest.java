@@ -1,5 +1,7 @@
 package org.pk.collector.jobs;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
 import org.jobrunr.jobs.context.JobDashboardLogger;
 import org.jobrunr.jobs.context.JobContext;
 import org.jobrunr.server.runner.ThreadLocalJobContext;
@@ -42,6 +44,9 @@ class SftpScanningJobTest {
     private SftpProperties properties;
 
     @Mock
+    private MeterRegistry meterRegistry;
+
+    @Mock
     private JobContext jobContext;
 
     @Mock
@@ -78,10 +83,11 @@ class SftpScanningJobTest {
         verify(clientProvider, never()).executeWithClient(any(), any());
         verify(scanner, never()).scanAll(any(), any(), any(), any());
         verify(batchRepository, never()).bulkUpsert(any());
+        verify(meterRegistry, never()).gauge(anyString(), anyIterable(), any(Number.class));
     }
 
     @Test
-    void performWork_whenServersDefined_shouldExecuteScan() throws Exception {
+    void performWork_whenServersDefined_shouldExecuteScanAndRecordMetrics() throws Exception {
         // Arrange
         SftpProperties.ServerConfig server1 = new SftpProperties.ServerConfig(
                 "node1", "host1", 22, "user1", SftpProperties.AuthType.PASSWORD, "pass1", null, null
@@ -117,11 +123,15 @@ class SftpScanningJobTest {
             verify(clientProvider, times(1)).executeWithClient(eq(server2), any());
             verify(scanner, times(2)).scanAll(any(), eq("/"), anyString(), any());
             verify(batchRepository, atLeastOnce()).bulkUpsert(any());
+
+            // Verify Metrics for both success scenarios
+            verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node1"), Tag.of("status", "success"))), any(Number.class));
+            verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node2"), Tag.of("status", "success"))), any(Number.class));
         }
     }
 
     @Test
-    void performWork_whenScannerThrowsException_shouldPropagateAsRuntimeException() throws Exception {
+    void performWork_whenScannerThrowsException_shouldPropagateAsRuntimeExceptionAndRecordFailureMetric() throws Exception {
         // Arrange
         SftpProperties.ServerConfig server = new SftpProperties.ServerConfig(
                 "node1", "host1", 22, "user1", SftpProperties.AuthType.PASSWORD, "pass1", null, null
@@ -141,6 +151,9 @@ class SftpScanningJobTest {
             sftpScanningJob.performWork(jobContext));
         assertTrue(exception.getMessage().contains("Communication error"));
         assertTrue(exception.getCause().getMessage().contains("Scan failed"));
+
+        // Verify Metrics for failure
+        verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node1"), Tag.of("status", "failure"))), any(Number.class));
     }
 
     @Test
@@ -160,7 +173,7 @@ class SftpScanningJobTest {
     }
 
     @Test
-    void performWork_whenExecutionExceptionOccurs_shouldPropagateCause() throws Exception {
+    void performWork_whenExecutionExceptionOccurs_shouldPropagateCauseAndRecordFailureMetric() throws Exception {
         // Arrange
         SftpProperties.ServerConfig server = new SftpProperties.ServerConfig(
                 "node1", "host1", 22, "user1", SftpProperties.AuthType.PASSWORD, "pass1", null, null
@@ -181,6 +194,9 @@ class SftpScanningJobTest {
             sftpScanningJob.performWork(jobContext));
         assertEquals("Communication error in the virtual process of SFTP servers.", exception.getMessage());
         assertEquals(originalException, exception.getCause());
+        
+        // Verify Metrics for failure
+        verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node1"), Tag.of("status", "failure"))), any(Number.class));
     }
 
     @Test

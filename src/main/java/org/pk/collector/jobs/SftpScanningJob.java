@@ -1,5 +1,7 @@
 package org.pk.collector.jobs;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
 import lombok.RequiredArgsConstructor;
 import org.jobrunr.jobs.context.JobContext;
 import org.pk.collector.config.SftpProperties;
@@ -13,6 +15,8 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Component
 @RequiredArgsConstructor
@@ -27,6 +31,7 @@ public class SftpScanningJob implements FixedDelayJob {
   private final RecursiveSftpScanner scanner;
   private final SftpFileBatchRepository batchRepository;
   private final SftpProperties properties;
+  private final MeterRegistry meterRegistry;
 
   @Value("${collector.jobs.sftp-scanning-interval-minutes:2}")
   private long scanningIntervalMinutes;
@@ -52,15 +57,24 @@ public class SftpScanningJob implements FixedDelayJob {
       return;
     }
 
+    AtomicReference<Exception> caughtException = new AtomicReference<>();
+
     List<Callable<Void>> tasks =
         servers.stream()
             .map(
-                serverConfig ->
-                    (Callable<Void>)
+                serverConfig -> {
+                    return (Callable<Void>)
                         () -> {
-                          scanServer(serverConfig);
+                          try {
+                            scanServer(serverConfig);
+                            recordSuccessMetric(serverConfig.id());
+                          } catch (Exception ex) {
+                            recordFailureMetric(serverConfig.id());
+                            caughtException.compareAndSet(null, ex); // Keep the first exception
+                          }
                           return null;
-                        })
+                        };
+                })
             .toList();
 
     List<Callable<Void>> contextAwareTasks =
@@ -76,10 +90,17 @@ public class SftpScanningJob implements FixedDelayJob {
       log.error("Main process thread interrupted while waiting.", e);
       throw new RuntimeException("Orchestration thread interrupted.", e);
     } catch (ExecutionException e) {
-      log.error(
-          "One of the servers encountered a stream corruption. Fracture delegated to JobRunr.", e);
+      log.error("A thread execution error occurred.", e);
       throw new Exception(
-          "Communication error in the virtual process of SFTP servers.", e.getCause());
+          "Thread execution error in the virtual process of SFTP servers.", e.getCause());
+    }
+
+    if (caughtException.get() != null) {
+      log.error(
+          "One of the servers encountered a stream corruption. Fracture delegated to JobRunr.",
+          caughtException.get());
+      throw new Exception(
+          "Communication error in the virtual process of SFTP servers.", caughtException.get());
     }
   }
 
@@ -96,5 +117,27 @@ public class SftpScanningJob implements FixedDelayJob {
                   log.info("Saving block of {} records from node: {}", batch.size(), config.id());
                   batchRepository.bulkUpsert(batch);
                 }));
+  }
+
+  private void recordSuccessMetric(String serverId) {
+    AtomicLong gauge =
+        meterRegistry.gauge(
+            "sftp.connection.timestamp",
+            List.of(Tag.of("server_id", serverId), Tag.of("status", "success")),
+            new AtomicLong(System.currentTimeMillis()));
+    if (gauge != null) {
+      gauge.set(System.currentTimeMillis());
+    }
+  }
+
+  private void recordFailureMetric(String serverId) {
+    AtomicLong gauge =
+        meterRegistry.gauge(
+            "sftp.connection.timestamp",
+            List.of(Tag.of("server_id", serverId), Tag.of("status", "failure")),
+            new AtomicLong(System.currentTimeMillis()));
+    if (gauge != null) {
+      gauge.set(System.currentTimeMillis());
+    }
   }
 }
