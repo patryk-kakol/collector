@@ -202,7 +202,7 @@ class SftpScanningIntegrationTest {
     // Act & Assert
     Exception exception =
         assertThrows(Exception.class, () -> sftpScanningJob.performWork(mockJobContext));
-    assertTrue(exception.getMessage().contains("Communication error"));
+    assertTrue(exception.getMessage().contains("Thread execution error"));
 
     // Database should be empty
     Integer count =
@@ -233,7 +233,7 @@ class SftpScanningIntegrationTest {
     // Act & Assert
     Exception exception =
         assertThrows(Exception.class, () -> sftpScanningJob.performWork(mockJobContext));
-    assertTrue(exception.getMessage().contains("Communication error"));
+    assertTrue(exception.getMessage().contains("Thread execution error"));
 
     // Database should be empty
     Integer count =

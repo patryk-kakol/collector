@@ -26,6 +26,7 @@ public class SftpScanningJob implements FixedDelayJob {
       new JobrunrVirtualThreadLogger(SftpScanningJob.class);
 
   private final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+  private final ConcurrentHashMap<String, AtomicLong> gaugeMap = new ConcurrentHashMap<>();
 
   private final SftpClientProvider clientProvider;
   private final RecursiveSftpScanner scanner;
@@ -61,20 +62,7 @@ public class SftpScanningJob implements FixedDelayJob {
 
     List<Callable<Void>> tasks =
         servers.stream()
-            .map(
-                serverConfig -> {
-                    return (Callable<Void>)
-                        () -> {
-                          try {
-                            scanServer(serverConfig);
-                            recordSuccessMetric(serverConfig.id());
-                          } catch (Exception ex) {
-                            recordFailureMetric(serverConfig.id());
-                            caughtException.compareAndSet(null, ex); // Keep the first exception
-                          }
-                          return null;
-                        };
-                })
+            .map(serverConfig -> createScanTask(serverConfig, caughtException))
             .toList();
 
     List<Callable<Void>> contextAwareTasks =
@@ -104,6 +92,21 @@ public class SftpScanningJob implements FixedDelayJob {
     }
   }
 
+  private Callable<Void> createScanTask(
+      SftpProperties.ServerConfig serverConfig, AtomicReference<Exception> caughtException) {
+    return () -> {
+      try {
+        scanServer(serverConfig);
+        recordSuccessMetric(serverConfig.id());
+      } catch (Exception ex) {
+        recordFailureMetric(serverConfig.id());
+        caughtException.compareAndSet(null, ex); // Keep the first exception
+        throw ex; // Re-throw to ensure the Future resolves with an exception
+      }
+      return null;
+    };
+  }
+
   public void scanServer(SftpProperties.ServerConfig serverConfig) throws Exception {
     log.info("Allocating virtual thread to verification node: {}", serverConfig.id());
     clientProvider.executeWithClient(
@@ -120,24 +123,23 @@ public class SftpScanningJob implements FixedDelayJob {
   }
 
   private void recordSuccessMetric(String serverId) {
-    AtomicLong gauge =
-        meterRegistry.gauge(
-            "sftp.connection.timestamp",
-            List.of(Tag.of("server_id", serverId), Tag.of("status", "success")),
-            new AtomicLong(System.currentTimeMillis()));
-    if (gauge != null) {
-      gauge.set(System.currentTimeMillis());
-    }
+    getOrCreateGauge(serverId, "success").set(System.currentTimeMillis());
   }
 
   private void recordFailureMetric(String serverId) {
-    AtomicLong gauge =
+    getOrCreateGauge(serverId, "failure").set(System.currentTimeMillis());
+  }
+
+  private AtomicLong getOrCreateGauge(String serverId, String status) {
+    String key = serverId + "-" + status;
+    return gaugeMap.computeIfAbsent(key, k -> {
+        AtomicLong newGauge = new AtomicLong(0);
         meterRegistry.gauge(
             "sftp.connection.timestamp",
-            List.of(Tag.of("server_id", serverId), Tag.of("status", "failure")),
-            new AtomicLong(System.currentTimeMillis()));
-    if (gauge != null) {
-      gauge.set(System.currentTimeMillis());
-    }
+            List.of(Tag.of("server_id", serverId), Tag.of("status", status)),
+            newGauge
+        );
+        return newGauge;
+    });
   }
 }

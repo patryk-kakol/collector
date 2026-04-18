@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -97,6 +98,10 @@ class SftpScanningJobTest {
         );
         when(properties.servers()).thenReturn(List.of(server1, server2));
 
+        // Mock gauge to return a dummy AtomicLong so it doesn't throw NPE in new implementation
+        when(meterRegistry.gauge(anyString(), anyIterable(), any(AtomicLong.class)))
+            .thenAnswer(invocation -> invocation.getArgument(2)); // Return the AtomicLong passed in
+
         doAnswer(invocation -> {
             SftpClientProvider.SftpCallback callback = invocation.getArgument(1);
             SftpProperties.ServerConfig cfg = invocation.getArgument(0);
@@ -125,8 +130,8 @@ class SftpScanningJobTest {
             verify(batchRepository, atLeastOnce()).bulkUpsert(any());
 
             // Verify Metrics for both success scenarios
-            verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node1"), Tag.of("status", "success"))), any(Number.class));
-            verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node2"), Tag.of("status", "success"))), any(Number.class));
+            verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node1"), Tag.of("status", "success"))), any(AtomicLong.class));
+            verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node2"), Tag.of("status", "success"))), any(AtomicLong.class));
         }
     }
 
@@ -137,6 +142,10 @@ class SftpScanningJobTest {
                 "node1", "host1", 22, "user1", SftpProperties.AuthType.PASSWORD, "pass1", null, null
         );
         when(properties.servers()).thenReturn(List.of(server));
+        
+        // Mock gauge to return a dummy AtomicLong so it doesn't throw NPE
+        when(meterRegistry.gauge(anyString(), anyIterable(), any(AtomicLong.class)))
+            .thenAnswer(invocation -> invocation.getArgument(2));
 
         doAnswer(invocation -> {
             SftpClientProvider.SftpCallback callback = invocation.getArgument(1);
@@ -149,11 +158,14 @@ class SftpScanningJobTest {
         // Act & Assert
         Exception exception = assertThrows(Exception.class, () ->
             sftpScanningJob.performWork(jobContext));
-        assertTrue(exception.getMessage().contains("Communication error"));
+        
+        // We now rethrow inside the lambda, which means the Future completes exceptionally,
+        // leading to ExecutionException which SftpScanningJob catches and rethrows as "Thread execution error..."
+        assertTrue(exception.getMessage().contains("Thread execution error"));
         assertTrue(exception.getCause().getMessage().contains("Scan failed"));
 
         // Verify Metrics for failure
-        verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node1"), Tag.of("status", "failure"))), any(Number.class));
+        verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node1"), Tag.of("status", "failure"))), any(AtomicLong.class));
     }
 
     @Test
@@ -179,6 +191,10 @@ class SftpScanningJobTest {
                 "node1", "host1", 22, "user1", SftpProperties.AuthType.PASSWORD, "pass1", null, null
         );
         when(properties.servers()).thenReturn(List.of(server));
+        
+        // Mock gauge to return a dummy AtomicLong so it doesn't throw NPE
+        when(meterRegistry.gauge(anyString(), anyIterable(), any(AtomicLong.class)))
+            .thenAnswer(invocation -> invocation.getArgument(2));
 
         doAnswer(invocation -> {
             SftpClientProvider.SftpCallback callback = invocation.getArgument(1);
@@ -192,11 +208,14 @@ class SftpScanningJobTest {
         // Act & Assert
         Exception exception = assertThrows(Exception.class, () ->
             sftpScanningJob.performWork(jobContext));
-        assertEquals("Communication error in the virtual process of SFTP servers.", exception.getMessage());
+            
+        // We rethrow inside the lambda, which means the Future completes exceptionally, 
+        // leading to ExecutionException which SftpScanningJob catches and rethrows as "Thread execution error..."
+        assertTrue(exception.getMessage().contains("Thread execution error"));
         assertEquals(originalException, exception.getCause());
         
         // Verify Metrics for failure
-        verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node1"), Tag.of("status", "failure"))), any(Number.class));
+        verify(meterRegistry).gauge(eq("sftp.connection.timestamp"), eq(List.of(Tag.of("server_id", "node1"), Tag.of("status", "failure"))), any(AtomicLong.class));
     }
 
     @Test
