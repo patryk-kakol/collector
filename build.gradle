@@ -40,6 +40,7 @@ dependencies {
 
     // Logging: Log4j2
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+    implementation 'org.apache.logging.log4j:log4j-layout-template-json'
     annotationProcessor 'org.apache.logging.log4j:log4j-core'
 
     // Lombok
@@ -72,6 +73,57 @@ dependencies {
     // Apache MINA SSHD for testing
     testImplementation 'org.apache.sshd:sshd-core:2.14.0'
     testImplementation 'org.apache.sshd:sshd-sftp:2.14.0'
+}
+
+springBoot {
+    buildInfo()
+}
+
+compileJava {
+    options.compilerArgs << '-Alog4j.graalvm.groupId=org.pk.collector' << '-Alog4j.graalvm.artifactId=collector'
+    // Temporarily disabled deprecation warning while we fix it properly
+}
+
+def generateGitProperties = tasks.register('generateGitProperties') {
+    def outputDir = layout.buildDirectory.dir("generated/git").get().asFile
+    def outputFile = new File(outputDir, "git.properties")
+    
+    outputs.dir(outputDir)
+
+    doLast {
+        def branch = 'unknown'
+        def commit = 'unknown'
+        
+        try {
+            // Using standard Groovy process execution to simplify
+            branch = 'git rev-parse --abbrev-ref HEAD'.execute().text.trim()
+            commit = 'git rev-parse HEAD'.execute().text.trim()
+        } catch (Exception e) {
+            println "Git command failed: ${e.message}"
+        }
+
+        if (!branch) branch = 'unknown'
+        if (!commit) commit = 'unknown'
+
+        outputDir.mkdirs()
+        
+        def props = new Properties()
+        props.setProperty("git.branch", branch)
+        props.setProperty("git.commit.id", commit)
+        props.setProperty("git.commit.id.abbrev", commit.length() >= 7 ? commit.substring(0, 7) : commit)
+        
+        outputFile.withOutputStream { out ->
+            props.store(out, null)
+        }
+    }
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir generateGitProperties
+        }
+    }
 }
 
 tasks.named('test') {

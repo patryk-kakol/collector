@@ -5,6 +5,7 @@ import org.apache.logging.log4j.core.Core;
 import org.apache.logging.log4j.core.Filter;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Property;
 import org.apache.logging.log4j.core.config.plugins.Plugin;
 import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
 import org.apache.logging.log4j.core.config.plugins.PluginElement;
@@ -27,7 +28,7 @@ public class JobRunrAppender extends AbstractAppender implements Serializable {
     private static final long serialVersionUID = 1L;
 
     protected JobRunrAppender(String name, Filter filter) {
-        super(name, filter, PatternLayout.createDefaultLayout(), true);
+        super(name, filter, PatternLayout.createDefaultLayout(), true, Property.EMPTY_ARRAY);
     }
 
     @PluginFactory

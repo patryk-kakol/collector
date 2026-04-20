@@ -9,6 +9,7 @@ import org.pk.collector.core.repository.SftpFileBatchRepository;
 import org.pk.collector.integration.sftp.RecursiveSftpScanner;
 import org.pk.collector.integration.sftp.SftpClientProvider;
 import org.pk.collector.monitoring.JobrunrVirtualThreadLogger;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -25,7 +26,9 @@ public class SftpScanningJob implements FixedDelayJob {
   private static final JobrunrVirtualThreadLogger log =
       new JobrunrVirtualThreadLogger(SftpScanningJob.class);
 
-  private final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+  private final ExecutorService virtualThreadExecutor = Executors.newThreadPerTaskExecutor(
+          Thread.ofVirtual().name("sftp-scan-", 1).factory()
+  );
   private final ConcurrentHashMap<String, AtomicLong> gaugeMap = new ConcurrentHashMap<>();
 
   private final SftpClientProvider clientProvider;
@@ -95,13 +98,14 @@ public class SftpScanningJob implements FixedDelayJob {
   private Callable<Void> createScanTask(
       SftpProperties.ServerConfig serverConfig, AtomicReference<Exception> caughtException) {
     return () -> {
-      try {
-        scanServer(serverConfig);
-        recordSuccessMetric(serverConfig.id());
+      // Put MDC context so thread name and serverId can be tracked natively across standard logs 
+      try (MDC.MDCCloseable ignored = MDC.putCloseable("serverId", serverConfig.id())) {
+          scanServer(serverConfig);
+          recordSuccessMetric(serverConfig.id());
       } catch (Exception ex) {
-        recordFailureMetric(serverConfig.id());
-        caughtException.compareAndSet(null, ex); // Keep the first exception
-        throw ex; // Re-throw to ensure the Future resolves with an exception
+          recordFailureMetric(serverConfig.id());
+          caughtException.compareAndSet(null, ex); // Keep the first exception
+          throw ex; // Re-throw to ensure the Future resolves with an exception
       }
       return null;
     };
@@ -132,7 +136,7 @@ public class SftpScanningJob implements FixedDelayJob {
 
   private AtomicLong getOrCreateGauge(String serverId, String status) {
     String key = serverId + "-" + status;
-    return gaugeMap.computeIfAbsent(key, k -> {
+    return gaugeMap.computeIfAbsent(key, ignored -> {
         AtomicLong newGauge = new AtomicLong(0);
         meterRegistry.gauge(
             "sftp.connection.timestamp",

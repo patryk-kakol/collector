@@ -6,11 +6,13 @@ import org.jobrunr.server.runner.ThreadLocalJobContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.MessageFormatter;
+import org.slf4j.MDC;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 /**
@@ -30,6 +32,10 @@ public class JobrunrVirtualThreadLogger {
     if (context == null || context == JobContext.Null) {
       return List.copyOf(tasks);
     }
+    
+    // Capture Mapped Diagnostic Context from the parent thread
+    final Map<String, String> mdcContextMap = MDC.getCopyOfContextMap();
+    
     return tasks.stream()
         .map(
             originalTask ->
@@ -37,9 +43,15 @@ public class JobrunrVirtualThreadLogger {
                     () -> {
                       /* Mount the context into JobRunr's native ThreadLocal */
                       JobRunrVirtualThreadContext.set(context);
+                      
+                      // Restore MDC context
+                      if (mdcContextMap != null) {
+                          MDC.setContextMap(mdcContextMap);
+                      }
                       try {
                         return originalTask.call();
                       } finally {
+                        MDC.clear();
                         JobRunrVirtualThreadContext.clear();
                       }
                     })
