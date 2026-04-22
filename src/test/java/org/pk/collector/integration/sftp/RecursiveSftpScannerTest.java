@@ -4,6 +4,7 @@ import net.schmizz.sshj.sftp.FileAttributes;
 import net.schmizz.sshj.sftp.FileMode;
 import net.schmizz.sshj.sftp.RemoteResourceInfo;
 import net.schmizz.sshj.sftp.SFTPClient;
+import net.schmizz.sshj.sftp.SFTPException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,10 +55,10 @@ class RecursiveSftpScannerTest {
         return file;
     }
 
-    private RemoteResourceInfo mockDirectory() {
+    private RemoteResourceInfo mockDirectory(String name, String path) {
         RemoteResourceInfo dir = mock(RemoteResourceInfo.class);
-        when(dir.getName()).thenReturn("dir1");
-        when(dir.getPath()).thenReturn("/dir1");
+        when(dir.getName()).thenReturn(name);
+        when(dir.getPath()).thenReturn(path);
         FileAttributes attributes = new FileAttributes.Builder().withType(FileMode.Type.DIRECTORY).build();
         when(dir.getAttributes()).thenReturn(attributes);
         return dir;
@@ -70,7 +71,7 @@ class RecursiveSftpScannerTest {
         String path = "/";
 
         RemoteResourceInfo file1 = mockFile("file1.txt", "/file1.txt", 1024, Instant.now().getEpochSecond());
-        RemoteResourceInfo dir1 = mockDirectory();
+        RemoteResourceInfo dir1 = mockDirectory("dir1", "/dir1");
         RemoteResourceInfo file2 = mockFile("file2.txt", "/dir1/file2.txt", 2048, Instant.now().getEpochSecond());
 
         when(sftpClient.ls(path)).thenReturn(List.of(file1, dir1));
@@ -149,16 +150,44 @@ class RecursiveSftpScannerTest {
     }
 
     @Test
-    void scanAll_whenLsThrowsException_shouldPropagateException() throws IOException {
+    void scanAll_whenLsThrowsSFTPException_shouldContinueScanningOtherDirectories() throws IOException {
         // Arrange
         String nodeId = "test-node";
-        String path = "/";
-        when(sftpClient.ls(path)).thenThrow(new IOException("Access denied"));
+        String rootPath = "/";
+
+        RemoteResourceInfo goodDir = mockDirectory("good-dir", "/good-dir");
+        RemoteResourceInfo badDir = mockDirectory("bad-dir", "/bad-dir");
+        
+        RemoteResourceInfo goodFile = mockFile("good-file.txt", "/good-dir/good-file.txt", 123, Instant.now().getEpochSecond());
+
+        when(sftpClient.ls(rootPath)).thenReturn(List.of(goodDir, badDir));
+        when(sftpClient.ls("/good-dir")).thenReturn(List.of(goodFile));
+        when(sftpClient.ls("/bad-dir")).thenThrow(new SFTPException("Permission denied"));
+
+        // Act
+        recursiveSftpScanner.scanAll(sftpClient, rootPath, nodeId, batchConsumer);
+
+        // Assert
+        verify(batchConsumer).accept(batchCaptor.capture());
+        List<SftpFileRecord> capturedBatch = batchCaptor.getValue();
+        assertEquals(1, capturedBatch.size());
+        assertEquals("good-file.txt", capturedBatch.getFirst().getFileName());
+        
+        verify(sftpClient).ls("/bad-dir"); // verify it was attempted
+    }
+
+    @Test
+    void scanAll_whenLsThrowsNonSFTPException_shouldPropagate() throws IOException {
+        // Arrange
+        String nodeId = "test-node";
+        String rootPath = "/";
+
+        when(sftpClient.ls(rootPath)).thenThrow(new IOException("Network error"));
 
         // Act & Assert
         IOException exception = assertThrows(IOException.class, () ->
-                recursiveSftpScanner.scanAll(sftpClient, path, nodeId, batchConsumer));
-        assertEquals("Access denied", exception.getMessage());
+                recursiveSftpScanner.scanAll(sftpClient, rootPath, nodeId, batchConsumer));
+        assertEquals("Network error", exception.getMessage());
         verify(batchConsumer, never()).accept(anyList());
     }
 

@@ -1,8 +1,7 @@
-
 databaseChangeLog:
   - changeSet:
       id: "1.0-create-sftp-files-table"
-      author: "system-architect"
+      author: "p"
       changes:
         - createTable:
             tableName: "sftp_file_registry"
@@ -14,32 +13,33 @@ databaseChangeLog:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: "server_id"
-                  type: "VARCHAR(255)"
+                  name: "status"
+                  type: "VARCHAR(10)"
+                  defaultValue: "NEW"
                   constraints:
                     nullable: false
               - column:
-                  name: "file_name"
-                  type: "VARCHAR(255)"
+                  name: "server_id"
+                  type: "VARCHAR(30)"
                   constraints:
                     nullable: false
               - column:
                   name: "file_path"
-                  type: "VARCHAR(2048)"
+                  type: "VARCHAR(512)"
                   constraints:
                     nullable: false
               - column:
                   name: "file_size"
                   type: "BIGINT"
               - column:
-                  name: "creation_timestamp"
+                  name: "created_at"
                   type: "TIMESTAMP WITH TIME ZONE"
               - column:
-                  name: "modification_timestamp"
+                  name: "modified_at"
                   type: "TIMESTAMP WITH TIME ZONE"
               - column:
-                  name: "last_scanned_at"
-                  type: "TIMESTAMP WITH TIME ZONE"
+                  name: "last_seen_at"
+                  type: "DATE"
                   constraints:
                     nullable: false
         - createIndex:
@@ -51,26 +51,16 @@ databaseChangeLog:
                   name: "server_id"
               - column:
                   name: "file_path"
-
-  - changeSet:
-      id: "1.1-create-system-state-table"
-      author: "system-architect"
-      changes:
-        - createTable:
-            tableName: "system_state"
+        - createIndex:
+            indexName: "idx_sftp_file_status"
+            tableName: "sftp_file_registry"
             columns:
               - column:
-                  name: "id"
-                  type: "VARCHAR(255)"
-                  constraints:
-                    primaryKey: true
-                    nullable: false
-              - column:
-                  name: "last_completed_at"
-                  type: "TIMESTAMP WITH TIME ZONE"
+                  name: "status"
+
   - changeSet:
-      id: 3-create-job-state-table
-      author: system-orchestrator
+      id: "2-create-job-state-table"
+      author: "p"
       changes:
         - createTable:
             tableName: job_state

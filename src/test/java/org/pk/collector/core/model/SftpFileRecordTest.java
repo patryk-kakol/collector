@@ -3,95 +3,99 @@ package org.pk.collector.core.model;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class SftpFileRecordTest {
 
-    @Test
-    void testNoArgsConstructorAndDefaultValues() {
-        // Arrange & Act
-        SftpFileRecord record = new SftpFileRecord();
+  @Test
+  void testNoArgsConstructorAndDefaultValues() {
+    // Arrange & Act
+    SftpFileRecord record = new SftpFileRecord();
 
-        // Assert
-        assertNull(record.getId());
-        assertNull(record.getServerId());
-        assertNull(record.getFileName());
-        assertNull(record.getFilePath());
-        assertNull(record.getFileSize());
-        assertNull(record.getCreationTimestamp());
-        assertNull(record.getModificationTimestamp());
-        assertNull(record.getLastScannedAt());
-    }
+    // Assert
+    assertNull(record.getId());
+    assertEquals(SftpFileStatus.NEW, record.getStatus());
+    assertNull(record.getServerId());
+    assertNull(record.getFileName());
+    assertNull(record.getFilePath());
+    assertNull(record.getFileSize());
+    assertNull(record.getCreatedAt());
+    assertNull(record.getModifiedAt());
+    assertNull(record.getLastSeenAt());
+  }
 
-    @Test
-    void testAllArgsConstructor() {
-        // Arrange
-        String id = "record-123";
-        String serverId = "server-1";
-        String fileName = "test.txt";
-        String filePath = "/data/test.txt";
-        Long fileSize = 1024L;
-        Instant creationTimestamp = Instant.now().minusSeconds(3600);
-        Instant modificationTimestamp = Instant.now().minusSeconds(1800);
-        Instant lastScannedAt = Instant.now();
+  @Test
+  void testAllArgsConstructor() {
+    // Arrange
+    String id = "record-123";
+    SftpFileStatus status = SftpFileStatus.NEW;
+    String serverId = "server-1";
+    String filePath = "/data/test.txt";
+    Long fileSize = 1024L;
+    Instant createdAt = Instant.now().minusSeconds(3600);
+    Instant modifiedAt = Instant.now().minusSeconds(1800);
+    LocalDate lastScannedAt = LocalDate.now();
 
-        // Act
-        SftpFileRecord record = new SftpFileRecord(
-                id,
-                serverId,
-                fileName,
-                filePath,
-                fileSize,
-                creationTimestamp,
-                modificationTimestamp,
-                lastScannedAt
-        );
+    // Act
+    SftpFileRecord record =
+        new SftpFileRecord(
+            id,
+            status,
+            serverId,
+            filePath,
+            fileSize,
+            createdAt,
+            modifiedAt,
+            lastScannedAt);
 
-        // Assert
-        assertEquals(id, record.getId());
-        assertEquals(serverId, record.getServerId());
-        assertEquals(fileName, record.getFileName());
-        assertEquals(filePath, record.getFilePath());
-        assertEquals(fileSize, record.getFileSize());
-        assertEquals(creationTimestamp, record.getCreationTimestamp());
-        assertEquals(modificationTimestamp, record.getModificationTimestamp());
-        assertEquals(lastScannedAt, record.getLastScannedAt());
-    }
+    // Assert
+    assertEquals(id, record.getId());
+    assertEquals(status, record.getStatus());
+    assertEquals(serverId, record.getServerId());
+    assertEquals("test.txt", record.getFileName());
+    assertEquals(filePath, record.getFilePath());
+    assertEquals(fileSize, record.getFileSize());
+    assertEquals(createdAt, record.getCreatedAt());
+    assertEquals(modifiedAt, record.getModifiedAt());
+    assertEquals(lastScannedAt, record.getLastSeenAt());
+  }
 
-    @Test
-    void testGettersAndSetters() {
-        // Arrange
-        SftpFileRecord record = new SftpFileRecord();
-        
-        String id = "record-456";
-        String serverId = "server-2";
-        String fileName = "data.csv";
-        String filePath = "/data/data.csv";
-        Long fileSize = 2048L;
-        Instant creationTimestamp = Instant.now().minusSeconds(7200);
-        Instant modificationTimestamp = Instant.now().minusSeconds(3600);
-        Instant lastScannedAt = Instant.now();
+  @Test
+  void testGettersAndSetters() {
+    // Arrange
+    SftpFileRecord record = new SftpFileRecord();
 
-        // Act
-        record.setId(id);
-        record.setServerId(serverId);
-        record.setFileName(fileName);
-        record.setFilePath(filePath);
-        record.setFileSize(fileSize);
-        record.setCreationTimestamp(creationTimestamp);
-        record.setModificationTimestamp(modificationTimestamp);
-        record.setLastScannedAt(lastScannedAt);
+    String id = "record-456";
+    SftpFileStatus status = SftpFileStatus.ACCEPTED;
+    String serverId = "server-2";
+    String filePath = "/data/data.csv";
+    Long fileSize = 2048L;
+    Instant createdAt = Instant.now().minusSeconds(7200);
+    Instant modifiedAt = Instant.now().minusSeconds(3600);
+    LocalDate lastSeenAt = LocalDate.now();
 
-        // Assert
-        assertEquals(id, record.getId());
-        assertEquals(serverId, record.getServerId());
-        assertEquals(fileName, record.getFileName());
-        assertEquals(filePath, record.getFilePath());
-        assertEquals(fileSize, record.getFileSize());
-        assertEquals(creationTimestamp, record.getCreationTimestamp());
-        assertEquals(modificationTimestamp, record.getModificationTimestamp());
-        assertEquals(lastScannedAt, record.getLastScannedAt());
-    }
+    // Act
+    record.setId(id);
+    record.setStatus(status);
+    record.setServerId(serverId);
+    record.setFilePath(filePath);
+    record.setFileSize(fileSize);
+    record.setCreatedAt(createdAt);
+    record.setModifiedAt(modifiedAt);
+    record.setLastSeenAt(lastSeenAt);
+
+    // Assert
+    assertEquals(id, record.getId());
+    assertEquals(status, record.getStatus());
+    assertEquals(serverId, record.getServerId());
+    assertEquals("data.csv", record.getFileName());
+    assertEquals(filePath, record.getFilePath());
+    assertEquals(fileSize, record.getFileSize());
+    assertEquals(createdAt, record.getCreatedAt());
+    assertEquals(modifiedAt, record.getModifiedAt());
+    assertEquals(lastSeenAt, record.getLastSeenAt());
+  }
 }

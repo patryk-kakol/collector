@@ -21,12 +21,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PublicKey;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -177,6 +179,85 @@ class SftpScanningIntegrationTest {
     assertTrue(serverIds.contains("server-password"));
     assertTrue(serverIds.contains("server-key"));
     assertTrue(serverIds.contains("server-both"));
+
+    // Check if initial status is NEW
+    List<String> statuses =
+        jdbcTemplate.queryForList("SELECT DISTINCT status FROM sftp_file_registry", String.class);
+    assertEquals(1, statuses.size());
+    assertEquals("NEW", statuses.getFirst());
+  }
+
+  @Test
+  void testStatusUpdateWhenFileChanged() throws Exception {
+    // Arrange
+    List<SftpProperties.ServerConfig> correctServers =
+        List.of(
+            new SftpProperties.ServerConfig(
+                "server-password",
+                "localhost",
+                sshServer.getPort(),
+                "testuser",
+                SftpProperties.AuthType.PASSWORD,
+                "testpass",
+                null,
+                null));
+    when(sftpProperties.servers()).thenReturn(correctServers);
+
+    JobContext mockJobContext = mock(JobContext.class);
+    JobDashboardLogger mockDashboardLogger = mock(JobDashboardLogger.class);
+    when(mockJobContext.logger()).thenReturn(mockDashboardLogger);
+
+    // First scan
+    sftpScanningJob.performWork(mockJobContext);
+
+    // Verify initial state
+    List<Map<String, Object>> records =
+        jdbcTemplate.queryForList("SELECT * FROM sftp_file_registry WHERE file_path LIKE '%test1.txt'");
+    assertEquals(1, records.size());
+    assertEquals("NEW", records.getFirst().get("status"));
+
+    // Change status to ACCEPTED
+    jdbcTemplate.update(
+        "UPDATE sftp_file_registry SET status = 'ACCEPTED' WHERE file_path LIKE '%test1.txt'");
+
+    // Modify file
+    Files.writeString(serverRoot.resolve("test1.txt"), "some content", StandardOpenOption.APPEND);
+
+    // Second scan (file has changed, but status is ACCEPTED)
+    sftpScanningJob.performWork(mockJobContext);
+
+    // Verify status has NOT changed from ACCEPTED
+    String status =
+        jdbcTemplate.queryForObject(
+            "SELECT status FROM sftp_file_registry WHERE file_path LIKE '%test1.txt'", String.class);
+    assertEquals("ACCEPTED", status, "Status should not change from ACCEPTED even if file is modified");
+
+    // Now, let's test the REJECTED case
+    // Change status to REJECTED
+    jdbcTemplate.update(
+        "UPDATE sftp_file_registry SET status = 'REJECTED' WHERE file_path LIKE '%test1.txt'");
+
+    // Sanity check
+    status =
+        jdbcTemplate.queryForObject(
+            "SELECT status FROM sftp_file_registry WHERE file_path LIKE '%test1.txt'", String.class);
+    assertEquals("REJECTED", status);
+
+    // Modify file again to ensure it's different
+    Files.writeString(serverRoot.resolve("test1.txt"), "some more content", StandardOpenOption.APPEND);
+
+    // Third scan
+    sftpScanningJob.performWork(mockJobContext);
+
+    // Verify status has changed back to NEW from REJECTED
+    status =
+        jdbcTemplate.queryForObject(
+            "SELECT status FROM sftp_file_registry WHERE file_path LIKE '%test1.txt'", String.class);
+    assertEquals("NEW", status, "Status should change from REJECTED to NEW if file is modified");
+
+
+    // Cleanup modification
+    Files.writeString(serverRoot.resolve("test1.txt"), "", StandardOpenOption.TRUNCATE_EXISTING);
   }
 
   @Test

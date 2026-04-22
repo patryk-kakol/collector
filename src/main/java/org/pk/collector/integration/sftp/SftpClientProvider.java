@@ -15,7 +15,8 @@ public class SftpClientProvider {
     try (SSHClient client = new SSHClient()) {
       client.addHostKeyVerifier(new PromiscuousVerifier());
 
-      log.info("Establishing session for node: {}", config.id());
+      log.info("Establishing session for node: [id:{}, host:{}:{}]", config.id(), config.host(),
+              config.port());
 
       if (config.proxy() != null) {
         log.info(
